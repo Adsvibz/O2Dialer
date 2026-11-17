@@ -188,6 +188,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         setContent {
             val dir = if (Store.cfg.lang == 1) LayoutDirection.Rtl else LayoutDirection.Ltr
             CompositionLocalProvider(LocalLayoutDirection provides dir) {
@@ -228,7 +229,7 @@ fun Root(act: MainActivity) {
     // Shared background capture for the floating frosted-glass dock.
     val navHazeState = remember { HazeState() }
     // The reference keeps its floating navigation visible on campaign details too.
-    val showNav = true
+    val showNav = WindowInsets.ime.getBottom(LocalDensity.current) == 0
     var dockHidden by remember(screenKey) { mutableStateOf(false) }
     val density = LocalDensity.current.density
     val scrollConnection = remember(screenKey, density) {
@@ -257,7 +258,7 @@ fun Root(act: MainActivity) {
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
         bottomBar = {}
     ) { pad ->
-        Box(Modifier.fillMaxSize().padding(pad).consumeWindowInsets(pad).nestedScroll(scrollConnection)) {
+        Box(Modifier.fillMaxSize().padding(pad).consumeWindowInsets(pad).imePadding().nestedScroll(scrollConnection)) {
             // The original Haze source powers the bottom navigation only.
             // Pinned headers have no Haze child and remain fully crisp.
             Box(

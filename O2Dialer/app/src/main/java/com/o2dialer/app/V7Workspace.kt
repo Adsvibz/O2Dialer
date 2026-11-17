@@ -181,7 +181,7 @@ private fun PrecisionCampaignContent(
                         value = query, onValueChange = { query = it }, singleLine = true,
                         interactionSource = interaction,
                         textStyle = MaterialTheme.typography.bodyMedium.copy(color = Ink),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).keepFieldVisible(),
                         decorationBox = { inner ->
                             Box {
                                 if (query.isEmpty()) Text(L(R.string.ui_search_campaigns_349b7b2b),

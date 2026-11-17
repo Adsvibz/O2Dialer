@@ -29,6 +29,7 @@ import kotlinx.coroutines.*
 @Composable
 fun ReferenceModal(onDismiss: () -> Unit, width: Dp = 384.dp, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        LegacyDialogResize()
         Surface(Modifier.padding(16.dp).widthIn(max = width).fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface.copy(alpha = 1f), contentColor = MaterialTheme.colorScheme.onSurface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp), content = content)
@@ -69,7 +70,7 @@ fun ReferenceRenameModal(list: CallList, onDismiss: () -> Unit) {
         Text(L(R.string.ref_new_campaign_name), fontSize = 11.5.sp, fontWeight = FontWeight.Medium, color = cs.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
         LaunchedEffect(Unit) { focus.requestFocus() }
-        BasicTextField(name, { name = it }, Modifier.focusRequester(focus).fillMaxWidth().height(36.dp)
+        BasicTextField(name, { name = it }, Modifier.focusRequester(focus).fillMaxWidth().keepFieldVisible().height(36.dp)
             .background(cs.surfaceVariant, RoundedCornerShape(8.dp)).border(1.dp, cs.outline, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp),
             singleLine = true, textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, color = cs.onSurface), cursorBrush = SolidColor(cs.onSurface),
             decorationBox = { input -> Box(contentAlignment = Alignment.CenterStart) { input() } })

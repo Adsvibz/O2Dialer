@@ -33,6 +33,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -293,7 +295,7 @@ fun BTextField(
             color = if (isError) cs.error else cs.onSurface)
         TextField(
             value = value, onValueChange = onChange,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().keepFieldVisible()
                 .border(if (focused || isError) 1.5.dp else 1.dp, line, RoundedCornerShape(12.dp))
                 .then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier),
             singleLine = singleLine, minLines = minLines,
@@ -758,6 +760,7 @@ fun BDialog(
         tonalElevation = 0.dp,
         title = if (title != null) { { Text(title, style = MaterialTheme.typography.titleLarge) } } else null,
         text = {
+            LegacyDialogResize()
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(Sp.l)) { content() }
         },
@@ -782,21 +785,17 @@ fun BDialog(
 fun BSheet(
     title: String, onDismiss: () -> Unit, subtitle: String? = null, scrollable: Boolean = true,
     actions: (@Composable ColumnScope.() -> Unit)? = null,
+    keyboardAware: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        containerColor = cs.surface.copy(alpha=1f),
-        tonalElevation = 0.dp,
-        scrimColor = Color.Black.copy(alpha = 0.32f),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = cs.outline) }
-    ) {
+    // Input sheets on API 26–29 use a native resize-aware dialog window.
+    val useLegacyInputSheet = keyboardAware && legacyKeyboardWindow
+    val sheetBody: @Composable () -> Unit = {
         Column(
-            Modifier.align(Alignment.CenterHorizontally).widthIn(max = 560.dp).fillMaxWidth()
-                .navigationBarsPadding().imePadding().padding(horizontal = Sp.xl),
+            Modifier.widthIn(max = 560.dp).fillMaxWidth()
+                .then(if (useLegacyInputSheet) Modifier else Modifier.navigationBarsPadding().imePadding())
+                .padding(horizontal = Sp.xl),
             verticalArrangement = Arrangement.spacedBy(Sp.l)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -821,6 +820,43 @@ fun BSheet(
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Sp.s)) { actions() }
             }
             Spacer(Modifier.height(Sp.s))
+        }
+    }
+    if (useLegacyInputSheet) {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = true)
+        ) {
+            LegacyDialogResize()
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.matchParentSize().clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                ))
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomCenter).widthIn(max = 560.dp).fillMaxWidth(),
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                    color = cs.surface
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        BottomSheetDefaults.DragHandle(color = cs.outline)
+                        sheetBody()
+                    }
+                }
+            }
+        }
+    } else {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            containerColor = cs.surface.copy(alpha=1f),
+            tonalElevation = 0.dp,
+            scrimColor = Color.Black.copy(alpha = 0.32f),
+            dragHandle = { BottomSheetDefaults.DragHandle(color = cs.outline) }
+        ) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { sheetBody() }
         }
     }
 }

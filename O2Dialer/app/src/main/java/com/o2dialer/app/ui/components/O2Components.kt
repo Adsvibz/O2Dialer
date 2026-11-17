@@ -109,7 +109,7 @@ import com.o2dialer.app.ui.theme.*
     Row(modifier.fillMaxWidth().height(44.dp).background(cs.onSurface.copy(alpha=.04f), CircleShape).padding(horizontal=14.dp),
         verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
         Icon(O2Icons.Search,null,Modifier.size(16.dp),tint=subtleAccentIconColor())
-        androidx.compose.foundation.text.BasicTextField(value,onChange,Modifier.weight(1f),singleLine=true,
+        androidx.compose.foundation.text.BasicTextField(value,onChange,Modifier.weight(1f).keepFieldVisible(),singleLine=true,
             textStyle=MaterialTheme.typography.bodyMedium.copy(fontSize=12.5.sp,color=cs.onSurface),cursorBrush=SolidColor(cs.onSurface),
             decorationBox={ field -> Box { if(value.isEmpty()) Text(placeholder,fontSize=12.5.sp,color=cs.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis); field() } })
         if(value.isNotEmpty()) IconButton({ onChange("") },Modifier.size(28.dp)) { Icon(O2Icons.Close,L(R.string.ui_clear_aeaec2c6),Modifier.size(14.dp)) }

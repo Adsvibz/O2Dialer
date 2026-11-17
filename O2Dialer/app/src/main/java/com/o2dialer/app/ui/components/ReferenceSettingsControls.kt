@@ -16,6 +16,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import com.o2dialer.app.ui.theme.*
+import com.o2dialer.app.keepFieldVisible
 
 @Composable
 fun ReferenceSettingChoice(title: String, options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
@@ -61,7 +62,7 @@ fun ReferenceSettingNumber(title: String, value: Int, min: Int, max: Int, modifi
         BasicTextField(input, { next ->
             if (next.isEmpty()) input = next
             else next.toIntOrNull()?.let { onChange(it.coerceIn(min, max)); input = it.coerceIn(min, max).toString() }
-        }, Modifier.fillMaxWidth().height(40.dp).background(cs.onSurface.copy(alpha = .04f), RoundedCornerShape(16.dp))
+        }, Modifier.fillMaxWidth().keepFieldVisible().height(40.dp).background(cs.onSurface.copy(alpha = .04f), RoundedCornerShape(16.dp))
             .padding(horizontal = 14.dp), singleLine = true,
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = O2Type.Mono, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = cs.onSurface),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), cursorBrush = SolidColor(cs.onSurface),

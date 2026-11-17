@@ -71,6 +71,7 @@ fun EntryDialog(initial: Entry?, onDismiss: () -> Unit, onSave: (String, String)
         title = if (initial == null) L(R.string.ui_add_number_077dc68a) else L(R.string.ui_edit_contact_45dfbdc5),
         subtitle = L(R.string.ui_country_code_is_added_automatically_9f763623),
         onDismiss = onDismiss,
+        keyboardAware = true,
         actions = {
             BButton(L(R.string.ui_save_ab3669ed), { onSave(n, p) }, Modifier.fillMaxWidth(), enabled = cleanNumber(p).length >= 3)
         }
@@ -84,7 +85,7 @@ fun EntryDialog(initial: Entry?, onDismiss: () -> Unit, onSave: (String, String)
 @Composable
 fun BulkDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     var t by rememberSaveable { mutableStateOf("") }
-    BSheet(title = L(R.string.ui_paste_numbers_04f4cd8a), onDismiss = onDismiss,
+    BSheet(title = L(R.string.ui_paste_numbers_04f4cd8a), onDismiss = onDismiss, keyboardAware = true,
         subtitle = L(R.string.ui_one_number_per_line_names_are_optional_53288457),
         actions = { BButton(L(R.string.ui_add_to_campaign_704a5fc1), { onAdd(t) }, Modifier.fillMaxWidth(), enabled = t.isNotBlank()) }) {
         BTextField(
@@ -116,6 +117,7 @@ fun ContactsDialog(onDismiss: () -> Unit, onAdd: (List<Pair<String, String>>) ->
         onDismiss = onDismiss,
         subtitle = L(R.string.ui_pick_the_people_to_call_1ff09d30),
         scrollable = false,
+        keyboardAware = true,
         actions = {
             BButton(if (sel.isEmpty()) L(R.string.ui_add_contacts_578816f9) else L(R.string.ui_add_contacts_90b0e76b, sel.size),
                 { onAdd((all ?: emptyList()).filter { it.second in sel }) }, Modifier.fillMaxWidth(), enabled = sel.isNotEmpty())

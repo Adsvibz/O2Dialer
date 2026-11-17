@@ -41,12 +41,13 @@ fun ReferenceStageSheet(listId: String, entryId: String) {
         Stg.WHATSAPP to T("Send details via WhatsApp", "متابعة عبر واتساب"),
         Stg.VOICEMAIL to T("Left voice message", "تم ترك رسالة صوتية"),
         Stg.NOT_INTERESTED to T("Declined offer", "غير مهتم حالياً"))
-    Dialog(close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+    Dialog(close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = legacyKeyboardWindow)) {
+        LegacyDialogResize()
         val view = LocalView.current
         SideEffect { (view.parent as? DialogWindowProvider)?.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND) }
         BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .4f))
             .clickable(remember { MutableInteractionSource() }, indication = null, onClick = close)
-            .safeDrawingPadding().imePadding()) {
+            .then(if (legacyKeyboardWindow) Modifier else Modifier.safeDrawingPadding().imePadding())) {
             Surface(Modifier.align(Alignment.Center)
                 .padding(20.dp).widthIn(max = 448.dp).fillMaxWidth().heightIn(max = maxHeight * .9f)
                 .clickable(remember { MutableInteractionSource() }, indication = null, onClick = {}),
@@ -83,7 +84,7 @@ fun ReferenceStageSheet(listId: String, entryId: String) {
                             }
                         }
                         Text(T("Feedback & Follow-up Notes", "الملاحظات والتعليقات"), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        BasicTextField(notes, { notes = it }, Modifier.fillMaxWidth().background(cs.surfaceVariant, RoundedCornerShape(12.dp))
+                        BasicTextField(notes, { notes = it }, Modifier.fillMaxWidth().keepFieldVisible().background(cs.surfaceVariant, RoundedCornerShape(12.dp))
                             .border(1.dp, cs.outlineVariant, RoundedCornerShape(12.dp)).padding(12.dp), minLines = 3, maxLines = 4,
                             textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, color = cs.onSurface), cursorBrush = SolidColor(cs.onSurface),
                             decorationBox = { input -> Box {

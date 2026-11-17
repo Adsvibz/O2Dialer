@@ -60,12 +60,13 @@ fun ReferenceCampaignForm(initial: CallList?, onDismiss: () -> Unit, onSave: (St
     val cs = MaterialTheme.colorScheme
     val title = L(if (initial == null) R.string.ui_create_campaign_cb28c9a7 else R.string.ui_edit_campaign_7f55beab)
     val action = L(if (initial == null) R.string.ui_create_campaign_cb28c9a7 else R.string.ui_save_changes_176a0511)
-    Dialog(onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+    Dialog(onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = legacyKeyboardWindow)) {
+        LegacyDialogResize()
         val view = LocalView.current
         SideEffect { (view.parent as? DialogWindowProvider)?.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND) }
         BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .4f))
             .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
-            .safeDrawingPadding().imePadding()) {
+            .then(if (legacyKeyboardWindow) Modifier else Modifier.safeDrawingPadding().imePadding())) {
             val wide = maxWidth >= 640.dp
             val centered = initial == null || wide
             Surface(Modifier.align(if (centered) Alignment.Center else Alignment.BottomCenter)
@@ -92,7 +93,7 @@ fun ReferenceCampaignForm(initial: CallList?, onDismiss: () -> Unit, onSave: (St
                         Column {
                             Text(L(R.string.ref_campaign_name_required), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                             Spacer(Modifier.height(6.dp))
-                            BasicTextField(name, { name = it }, Modifier.fillMaxWidth().height(40.dp)
+                            BasicTextField(name, { name = it }, Modifier.fillMaxWidth().keepFieldVisible().height(40.dp)
                                 .background(cs.surfaceVariant, RoundedCornerShape(12.dp))
                                 .border(1.dp, cs.outlineVariant, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp),
                                 singleLine = true, textStyle = TextStyle(color = cs.onSurface, fontSize = 13.5.sp,
