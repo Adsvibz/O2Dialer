@@ -2,6 +2,10 @@
 
 package com.o2dialer.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.os.PersistableBundle
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -31,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.o2dialer.app.ui.components.O2Icons
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -169,14 +174,35 @@ private fun ResultRow(e: Entry, listId: String, isFirst: Boolean, isLast: Boolea
     }
 }
 
+/** Category/outcome selection is independent from temporary search text. */
+internal fun resultCategoryEntries(entries: List<Entry>, stage: Int, outcome: Int): List<Entry> =
+    entries.filter { (stage == -1 || it.stage == stage) && (outcome == -1 || it.status == outcome) }
+        .sortedByDescending { it.calledAt }
+
+internal fun searchResultEntries(entries: List<Entry>, query: String): List<Entry> {
+    val term = query.trim()
+    if (term.isEmpty()) return entries
+    return entries.filter {
+        it.name.contains(term, ignoreCase = true) ||
+            it.number.contains(term, ignoreCase = true) ||
+            it.feedback.contains(term, ignoreCase = true)
+    }
+}
+
+/** One original stored number per line, never names or notes. */
+internal fun resultNumbersForClipboard(entries: List<Entry>): List<String> =
+    entries.map { it.number }.filter { it.isNotBlank() }
+
 @Composable
 fun ResultsScreen(act: MainActivity) {
+    val ctx = LocalContext.current
     val id=Store.resultsListId?.takeIf { id -> Store.lists.any { it.id==id } }
         ?: Store.runListId?.takeIf { id -> Store.lists.any { it.id==id } } ?: Store.lists.firstOrNull()?.id
     val list=Store.lists.find { it.id==id }
     var outcome by rememberSaveable(id) { mutableIntStateOf(-1) }
     var stage by rememberSaveable(id) { mutableIntStateOf(-1) }
     var query by rememberSaveable(id) { mutableStateOf("") }
+    var searchOpen by rememberSaveable(id) { mutableStateOf(false) }
     var picker by remember { mutableStateOf(false) }
     var sharing by rememberSaveable(id) { mutableStateOf(false) }
     Scaffold(topBar={ BlendBar(L(R.string.ui_results_e87ed283),subtitle=list?.name,actions={
@@ -189,10 +215,9 @@ fun ResultsScreen(act: MainActivity) {
         } else {
             val p=Store.prog(list)
             val classified=list.entries.count { it.stage!=Stg.NONE }
-            val rows=list.entries.filter {
-                (outcome==-1 || it.status==outcome) && (stage==-1 || it.stage==stage) &&
-                    (query.isBlank() || it.name.contains(query,true) || it.number.contains(query) || it.feedback.contains(query,true))
-            }.sortedByDescending { it.calledAt }
+            val categoryRows = resultCategoryEntries(list.entries, stage, outcome)
+            val rows = searchResultEntries(categoryRows, query)
+            val numbersToCopy = resultNumbersForClipboard(categoryRows)
             LazyColumn(Modifier.padding(pad),contentPadding=PaddingValues(start=20.dp,end=20.dp,top=ScreenFrame.contentTop,bottom=ScreenFrame.contentBottom),verticalArrangement=Arrangement.spacedBy(14.dp)) {
                 item {
                     Box {
@@ -231,7 +256,6 @@ fun ResultsScreen(act: MainActivity) {
                         }
                     }
                 }
-                item { com.o2dialer.app.ui.components.O2InputField(query,{query=it},L(R.string.ui_search_contacts_or_notes_5ad47609)) }
                 item {
                     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                         listOf(-1 to L(R.string.ui_all_40d8dc7f),St.ANSWERED to L(R.string.ui_answered_f0c92feb),St.NO_ANSWER to L(R.string.ui_no_answer_b66d7832),St.FAILED to L(R.string.ui_failed_5eae74b5),St.DONE to L(R.string.ui_unverified_23ef196a)).forEach { (k,label) ->
@@ -240,9 +264,65 @@ fun ResultsScreen(act: MainActivity) {
                     }
                 }
                 item {
-                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                        Text(L(R.string.ui_contacts_a01f7e45, rows.size),Modifier.weight(1f),style=MaterialTheme.typography.titleSmall)
-                        if(stage!=-1 || outcome!=-1 || query.isNotBlank()) TextButton(onClick={stage=-1;outcome=-1;query=""}) {Text(L(R.string.ui_clear_filters_48a9b1a9))}
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                L(R.string.ui_contacts_a01f7e45, rows.size),
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            IconButton(onClick = {
+                                searchOpen = !searchOpen
+                                if (!searchOpen) query = ""
+                            }, modifier = Modifier.size(48.dp)) {
+                                Icon(
+                                    if (searchOpen) O2Icons.Close else O2Icons.Search,
+                                    contentDescription = if (searchOpen) T("Close search", "إغلاق البحث")
+                                        else T("Search selected contacts", "البحث في الأرقام المحددة"),
+                                    modifier = Modifier.size(16.dp),
+                                    tint = subtleAccentIconColor()
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    val clipboard = ctx.getSystemService(ClipboardManager::class.java)
+                                    val copied = runCatching {
+                                        checkNotNull(clipboard)
+                                        val clip = ClipData.newPlainText("O2Dialer numbers", numbersToCopy.joinToString("\n"))
+                                        // Phone numbers are personal contact data: suppress the clipboard preview.
+                                        clip.description.extras = PersistableBundle().apply {
+                                            putBoolean("android.content.extra.IS_SENSITIVE", true)
+                                        }
+                                        clipboard.setPrimaryClip(clip)
+                                    }.isSuccess
+                                    if (copied) Store.notify(Tk.SUCCESS, T(
+                                        "${numbersToCopy.size} numbers copied",
+                                        "تم نسخ ${numbersToCopy.size} رقم"
+                                    )) else Store.notify(Tk.ERROR, T("Unable to copy numbers", "تعذر نسخ الأرقام"))
+                                },
+                                enabled = numbersToCopy.isNotEmpty(),
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    O2Icons.Copy,
+                                    contentDescription = T("Copy all numbers in selected filters", "نسخ كل أرقام التصنيف المحدد"),
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (numbersToCopy.isNotEmpty()) subtleAccentIconColor()
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = .38f)
+                                )
+                            }
+                        }
+                        AnimatedVisibility(visible = searchOpen) {
+                            com.o2dialer.app.ui.components.O2InputField(
+                                query, { query = it }, L(R.string.ui_search_contacts_or_notes_5ad47609)
+                            )
+                        }
+                        if (stage != -1 || outcome != -1 || query.isNotBlank()) {
+                            TextButton(
+                                onClick = { stage = -1; outcome = -1; query = ""; searchOpen = false },
+                                modifier = Modifier.align(Alignment.End)
+                            ) { Text(L(R.string.ui_clear_filters_48a9b1a9)) }
+                        }
                     }
                 }
                 if(rows.isEmpty()) item { Text(L(R.string.ui_no_matching_contacts_17c191b2),color=MaterialTheme.colorScheme.onSurfaceVariant) }
