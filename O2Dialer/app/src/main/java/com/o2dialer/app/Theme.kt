@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
@@ -200,6 +201,11 @@ fun AppTheme(content: @Composable () -> Unit) {
                 val ic = WindowCompat.getInsetsController(w, view)
                 ic.isAppearanceLightStatusBars = !dark
                 ic.isAppearanceLightNavigationBars = !dark
+                if (legacyKeyboardWindow) {
+                    // Native system bars are opaque on this compatibility path.
+                    w.statusBarColor = cleanScheme.background.toArgb()
+                    w.navigationBarColor = cleanScheme.background.toArgb()
+                }
             }
         }
     }

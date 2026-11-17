@@ -47,13 +47,17 @@ fun ReferenceStageSheet(listId: String, entryId: String) {
         SideEffect { (view.parent as? DialogWindowProvider)?.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND) }
         BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .4f))
             .clickable(remember { MutableInteractionSource() }, indication = null, onClick = close)
-            .then(if (legacyKeyboardWindow) Modifier else Modifier.safeDrawingPadding().imePadding())) {
+            .then(if (legacyKeyboardWindow) Modifier.keyboardViewportPadding(nativeResize = true)
+                else Modifier.safeDrawingPadding().keyboardViewportPadding(nativeResize = false))) {
+            val compact = maxHeight < 460.dp
+            val formScroll = rememberScrollState()
+            val bodyScroll = rememberScrollState()
             Surface(Modifier.align(Alignment.Center)
-                .padding(20.dp).widthIn(max = 448.dp).fillMaxWidth().heightIn(max = maxHeight * .9f)
+                .padding(if (compact) 8.dp else 20.dp).widthIn(max = 448.dp).fillMaxWidth().heightIn(max = maxHeight * .9f)
                 .clickable(remember { MutableInteractionSource() }, indication = null, onClick = {}),
                 shape = RoundedCornerShape(24.dp), shadowElevation = 16.dp,
                 color = cs.surface, contentColor = cs.onSurface, border = BorderStroke(1.dp, cs.outlineVariant)) {
-                Column {
+                Column(Modifier.then(if (compact) Modifier.verticalScroll(formScroll) else Modifier)) {
                     Row(Modifier.padding(20.dp, 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(T("Classify Call Outcome", "تصنيف نتيجة المكالمة"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -62,7 +66,8 @@ fun ReferenceStageSheet(listId: String, entryId: String) {
                         IconButton(close, Modifier.size(32.dp)) { Icon(O2Icons.Close, L(R.string.ref_close), Modifier.size(16.dp)) }
                     }
                     HorizontalDivider(color = cs.outlineVariant)
-                    Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(20.dp).selectableGroup(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.then(if (compact) Modifier else Modifier.weight(1f, fill = false).verticalScroll(bodyScroll))
+                        .padding(20.dp).selectableGroup(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(T("Select Call Stage", "اختر المرحلة (5 فئات أساسية)"), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         listOf(Stg.POTENTIAL, Stg.CALL_BACK, Stg.WHATSAPP, Stg.VOICEMAIL, Stg.NOT_INTERESTED).chunked(2).forEach { row ->
                             Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

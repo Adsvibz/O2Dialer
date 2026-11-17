@@ -66,7 +66,8 @@ fun ReferenceCampaignForm(initial: CallList?, onDismiss: () -> Unit, onSave: (St
         SideEffect { (view.parent as? DialogWindowProvider)?.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND) }
         BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .4f))
             .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
-            .then(if (legacyKeyboardWindow) Modifier else Modifier.safeDrawingPadding().imePadding())) {
+            .then(if (legacyKeyboardWindow) Modifier.keyboardViewportPadding(nativeResize = true)
+                else Modifier.safeDrawingPadding().keyboardViewportPadding(nativeResize = false))) {
             val wide = maxWidth >= 640.dp
             val centered = initial == null || wide
             Surface(Modifier.align(if (centered) Alignment.Center else Alignment.BottomCenter)

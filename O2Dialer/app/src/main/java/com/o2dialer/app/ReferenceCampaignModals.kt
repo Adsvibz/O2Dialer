@@ -30,7 +30,8 @@ import kotlinx.coroutines.*
 fun ReferenceModal(onDismiss: () -> Unit, width: Dp = 384.dp, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         LegacyDialogResize()
-        Surface(Modifier.padding(16.dp).widthIn(max = width).fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+        Surface(Modifier.then(if (legacyKeyboardWindow) Modifier.keyboardViewportPadding(nativeResize = true) else Modifier)
+            .padding(16.dp).widthIn(max = width).fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface.copy(alpha = 1f), contentColor = MaterialTheme.colorScheme.onSurface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp), content = content)
         }

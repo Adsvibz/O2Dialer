@@ -791,11 +791,15 @@ fun BSheet(
     val cs = MaterialTheme.colorScheme
     // Input sheets on API 26–29 use a native resize-aware dialog window.
     val useLegacyInputSheet = keyboardAware && legacyKeyboardWindow
-    val sheetBody: @Composable () -> Unit = {
+    val sheetBody: @Composable (Boolean) -> Unit = { compact ->
+        val compactForm = compact && scrollable && keyboardAware
+        val formScroll = rememberScrollState()
+        val bodyScroll = rememberScrollState()
         Column(
             Modifier.widthIn(max = 560.dp).fillMaxWidth()
-                .then(if (useLegacyInputSheet) Modifier else Modifier.navigationBarsPadding().imePadding())
-                .padding(horizontal = Sp.xl),
+                .then(if (useLegacyInputSheet) Modifier else Modifier.navigationBarsPadding().keyboardViewportPadding(nativeResize = false))
+                .padding(horizontal = Sp.xl)
+                .then(if (compactForm) Modifier.verticalScroll(formScroll) else Modifier),
             verticalArrangement = Arrangement.spacedBy(Sp.l)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -811,8 +815,9 @@ fun BSheet(
                 }
             }
             Column(
-                Modifier.weight(1f, fill = false).fillMaxWidth()
-                    .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                Modifier.fillMaxWidth()
+                    .then(if (compactForm) Modifier else Modifier.weight(1f, fill = false))
+                    .then(if (scrollable && !compactForm) Modifier.verticalScroll(bodyScroll) else Modifier),
                 verticalArrangement = Arrangement.spacedBy(Sp.l)
             ) { content() }
             if (actions != null) {
@@ -828,7 +833,7 @@ fun BSheet(
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = true)
         ) {
             LegacyDialogResize()
-            Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().keyboardViewportPadding(nativeResize = true)) {
                 Box(Modifier.matchParentSize().clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -841,7 +846,9 @@ fun BSheet(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         BottomSheetDefaults.DragHandle(color = cs.outline)
-                        sheetBody()
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            sheetBody(maxHeight < 430.dp)
+                        }
                     }
                 }
             }
@@ -856,7 +863,13 @@ fun BSheet(
             scrimColor = Color.Black.copy(alpha = 0.32f),
             dragHandle = { BottomSheetDefaults.DragHandle(color = cs.outline) }
         ) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { sheetBody() }
+            BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                val viewport = rememberKeyboardViewport()
+                val keyboardDp = with(androidx.compose.ui.platform.LocalDensity.current) {
+                    WindowInsets.ime.getBottom(this).toDp()
+                }
+                sheetBody(maxHeight - keyboardDp < 430.dp && viewport.visible)
+            }
         }
     }
 }
