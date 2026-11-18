@@ -130,6 +130,10 @@ internal fun Modifier.keyboardViewportPadding(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun Modifier.keepFieldVisible(): Modifier {
+    // Unified modal has a single stable scroll parent; Compose TextField
+    // already relocates its cursor on viewport changes. Avoid competing
+    // per-field listeners and focus transactions in these windows.
+    if (LocalO2Modal.current) return this
     val requester = remember { BringIntoViewRequester() }
     var focused by remember { mutableStateOf(false) }
     // Keep the composition slots and modifier nodes stable across focus changes.

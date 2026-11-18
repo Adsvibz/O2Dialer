@@ -1,6 +1,5 @@
 package com.o2dialer.app
 
-import android.view.WindowManager
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -14,7 +13,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,23 +39,7 @@ fun ReferenceStageSheet(listId: String, entryId: String) {
         Stg.WHATSAPP to T("Send details via WhatsApp", "متابعة عبر واتساب"),
         Stg.VOICEMAIL to T("Left voice message", "تم ترك رسالة صوتية"),
         Stg.NOT_INTERESTED to T("Declined offer", "غير مهتم حالياً"))
-    Dialog(close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = legacyKeyboardWindow)) {
-        LegacyDialogResize()
-        val view = LocalView.current
-        SideEffect { (view.parent as? DialogWindowProvider)?.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND) }
-        BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .4f))
-            .clickable(remember { MutableInteractionSource() }, indication = null, onClick = close)
-            .then(if (legacyKeyboardWindow) Modifier.keyboardViewportPadding(nativeResize = true)
-                else Modifier.safeDrawingPadding().keyboardViewportPadding(nativeResize = false))) {
-            // A single scroll tree for the entire lifetime of this dialog.
-            // Never change scroll ownership while the IME has a focused text field.
-            val formScroll = rememberScrollState()
-            Surface(Modifier.align(Alignment.Center)
-                .padding(12.dp).widthIn(max = 448.dp).fillMaxWidth().heightIn(max = maxHeight)
-                .clickable(remember { MutableInteractionSource() }, indication = null, onClick = {}),
-                shape = RoundedCornerShape(24.dp), shadowElevation = 16.dp,
-                color = cs.surface, contentColor = cs.onSurface, border = BorderStroke(1.dp, cs.outlineVariant)) {
-                Column(Modifier.verticalScroll(formScroll)) {
+    O2Modal(onDismiss = close) {
                     Row(Modifier.padding(20.dp, 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(T("Classify Call Outcome", "تصنيف نتيجة المكالمة"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -115,8 +97,5 @@ fun ReferenceStageSheet(listId: String, entryId: String) {
                             close(); Store.notify(Tk.SUCCESS, L(R.string.ui_saved_65225f27))
                         })
                     }
-                }
-            }
-        }
     }
 }

@@ -1,6 +1,5 @@
 package com.o2dialer.app.ui.components
 
-import android.view.WindowManager
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -14,7 +13,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -60,24 +58,8 @@ fun ReferenceCampaignForm(initial: CallList?, onDismiss: () -> Unit, onSave: (St
     val cs = MaterialTheme.colorScheme
     val title = L(if (initial == null) R.string.ui_create_campaign_cb28c9a7 else R.string.ui_edit_campaign_7f55beab)
     val action = L(if (initial == null) R.string.ui_create_campaign_cb28c9a7 else R.string.ui_save_changes_176a0511)
-    Dialog(onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = legacyKeyboardWindow)) {
-        LegacyDialogResize()
-        val view = LocalView.current
-        SideEffect { (view.parent as? DialogWindowProvider)?.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND) }
-        BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .4f))
-            .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
-            .then(if (legacyKeyboardWindow) Modifier.keyboardViewportPadding(nativeResize = true)
-                else Modifier.safeDrawingPadding().keyboardViewportPadding(nativeResize = false))) {
-            val wide = maxWidth >= 640.dp
-            val centered = initial == null || wide
-            Surface(Modifier.align(if (centered) Alignment.Center else Alignment.BottomCenter)
-                .padding(if (centered) 20.dp else 0.dp).widthIn(max = 448.dp).fillMaxWidth()
-                .clickable(remember { MutableInteractionSource() }, indication = null, onClick = {}),
-                shape = RoundedCornerShape(topStart = if (centered) 24.dp else 16.dp, topEnd = if (centered) 24.dp else 16.dp,
-                    bottomStart = if (centered) 24.dp else 0.dp, bottomEnd = if (centered) 24.dp else 0.dp),
-                color = cs.surface, contentColor = cs.onSurface, shadowElevation = if (centered) 16.dp else 0.dp,
-                border = BorderStroke(1.dp, cs.outlineVariant)) {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
+    val centered = initial == null || androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 640
+    O2Modal(onDismiss, bottomAligned = !centered, outerPadding = if (centered) 16.dp else 0.dp) {
                     Row(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -124,8 +106,5 @@ fun ReferenceCampaignForm(initial: CallList?, onDismiss: () -> Unit, onSave: (St
                             }
                         }
                     }
-                }
-            }
-        }
     }
 }

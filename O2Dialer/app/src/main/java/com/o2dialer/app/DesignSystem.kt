@@ -728,8 +728,8 @@ fun BlendBar(
                 Spacer(Modifier.width(Sp.m))
             }
             Column(Modifier.weight(1f)) {
-                Text(title,style=MaterialTheme.typography.headlineLarge,maxLines=2,overflow=TextOverflow.Ellipsis)
-                if(subtitle!=null) Text(subtitle,style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=2,overflow=TextOverflow.Ellipsis)
+                O2FitTitle(title, MaterialTheme.typography.headlineLarge)
+                if(subtitle!=null) O2FitTitle(subtitle, MaterialTheme.typography.labelMedium, MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (showLanguage) {
                 SoftIconButton(com.o2dialer.app.ui.components.O2Icons.Globe,L(R.string.ui_change_language_1c32e0d1),{LanguageTransition.toggle()})
@@ -753,34 +753,24 @@ fun BDialog(
     dismissText: String = L(R.string.ui_cancel_823a3ad2), destructive: Boolean = false, confirmEnabled: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(24.dp),
-        containerColor = MaterialTheme.colorScheme.surface.copy(alpha=1f),
-        tonalElevation = 0.dp,
-        title = if (title != null) { { Text(title, style = MaterialTheme.typography.titleLarge) } } else null,
-        text = {
-            LegacyDialogResize()
-            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(Sp.l)) { content() }
-        },
-        confirmButton = {
-            if (confirmText != null && onConfirm != null) BButton(
-                confirmText, onConfirm, kind = if (destructive) BtnKind.Danger else BtnKind.Primary,
-                compact = true, enabled = confirmEnabled)
-        },
-        dismissButton = {
-            val cancelTouch = remember { MutableInteractionSource() }
-            TextButton(onClick = onDismiss, modifier = Modifier.pressScale(cancelTouch),
-                interactionSource = cancelTouch) { Text(dismissText, style = MaterialTheme.typography.labelLarge) }
+    O2Modal(onDismiss = onDismiss, maxWidth = 384.dp, outerPadding = 16.dp) {
+        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(Sp.l)) {
+            if (title != null) Text(title, style = MaterialTheme.typography.titleLarge)
+            content()
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically) {
+                val cancelTouch = remember { MutableInteractionSource() }
+                TextButton(onClick = onDismiss, modifier = Modifier.pressScale(cancelTouch),
+                    interactionSource = cancelTouch) { Text(dismissText, style = MaterialTheme.typography.labelLarge) }
+                if (confirmText != null && onConfirm != null) BButton(
+                    confirmText, onConfirm, kind = if (destructive) BtnKind.Danger else BtnKind.Primary,
+                    compact = true, enabled = confirmEnabled)
+            }
         }
-    )
+    }
 }
 
-/**
- * Modern replacement for centred forms: a full-width bottom sheet with a big title,
- * comfortable fields and one clear primary action.
- */
+/** Input and selection sheets share the same window and inset policy on all Android versions. */
 @Composable
 fun BSheet(
     title: String, onDismiss: () -> Unit, subtitle: String? = null, scrollable: Boolean = true,
@@ -789,80 +779,30 @@ fun BSheet(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
-    // Use a native dialog for input sheets on older devices. The form's scroll
-    // owner stays unchanged as the keyboard opens/closes, preserving focus.
-    val useLegacyInputSheet = keyboardAware && legacyKeyboardWindow
-    val sheetBody: @Composable () -> Unit = {
-        val compactForm = scrollable && keyboardAware
-        val formScroll = rememberScrollState()
-        val bodyScroll = rememberScrollState()
+    O2Modal(onDismiss, bottomAligned = true, maxWidth = 560.dp, outerPadding = 0.dp, scrollable = scrollable) {
         Column(
-            Modifier.widthIn(max = 560.dp).fillMaxWidth()
-                .then(if (useLegacyInputSheet) Modifier else Modifier.navigationBarsPadding().keyboardViewportPadding(nativeResize = false))
-                .padding(horizontal = Sp.xl)
-                .then(if (compactForm) Modifier.verticalScroll(formScroll) else Modifier),
+            Modifier.fillMaxWidth().padding(horizontal = Sp.xl, vertical = Sp.m),
             verticalArrangement = Arrangement.spacedBy(Sp.l)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(title, style = MaterialTheme.typography.titleLarge)
-                    if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall,
-                        color = cs.onSurfaceVariant)
+                    if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
                 }
                 val closeTouch = remember { MutableInteractionSource() }
-                IconButton(onClick = onDismiss, modifier = Modifier.pressScale(closeTouch),
-                    interactionSource = closeTouch) {
+                IconButton(onClick = onDismiss, modifier = Modifier.pressScale(closeTouch), interactionSource = closeTouch) {
                     Icon(com.o2dialer.app.ui.components.O2Icons.Close, L(R.string.ui_close_115c64b0), tint = cs.onSurfaceVariant)
                 }
             }
+            // A lazy contacts list is kept bounded; other sheets scroll as one form.
             Column(
-                Modifier.fillMaxWidth()
-                    .then(if (compactForm) Modifier else Modifier.weight(1f, fill = false))
-                    .then(if (scrollable && !compactForm) Modifier.verticalScroll(bodyScroll) else Modifier),
-                verticalArrangement = Arrangement.spacedBy(Sp.l)
-            ) { content() }
+                Modifier.fillMaxWidth().then(if (scrollable) Modifier else Modifier.weight(1f, fill = false)),
+                verticalArrangement = Arrangement.spacedBy(Sp.l), content = content
+            )
             if (actions != null) {
                 HorizontalDivider(color = cs.outlineVariant)
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Sp.s)) { actions() }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Sp.s), content = actions)
             }
-            Spacer(Modifier.height(Sp.s))
-        }
-    }
-    if (useLegacyInputSheet) {
-        Dialog(
-            onDismissRequest = onDismiss,
-            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = true)
-        ) {
-            LegacyDialogResize()
-            Box(Modifier.fillMaxSize().keyboardViewportPadding(nativeResize = true)) {
-                Box(Modifier.matchParentSize().clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss
-                ))
-                Surface(
-                    modifier = Modifier.align(Alignment.BottomCenter).widthIn(max = 560.dp).fillMaxWidth(),
-                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                    color = cs.surface
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        BottomSheetDefaults.DragHandle(color = cs.outline)
-                        sheetBody()
-                    }
-                }
-            }
-        }
-    } else {
-        ModalBottomSheet(
-            onDismissRequest = onDismiss,
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            containerColor = cs.surface.copy(alpha=1f),
-            tonalElevation = 0.dp,
-            scrimColor = Color.Black.copy(alpha = 0.32f),
-            dragHandle = { BottomSheetDefaults.DragHandle(color = cs.outline) }
-        ) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { sheetBody() }
         }
     }
 }

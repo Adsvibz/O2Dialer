@@ -18,6 +18,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.UUID
+import java.io.File
 
 /**
  * Real IME test on the compact CI emulator. Render the actual application forms,
@@ -28,6 +29,27 @@ import java.util.UUID
 class KeyboardFormsInstrumentedTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val device = UiDevice.getInstance(instrumentation)
+    private val appPackage = "com.o2dialer.app"
+    private fun editable() = By.pkg(appPackage).clazz("android.widget.EditText")
+
+    private fun reportFailure(name: String) {
+        val folder = instrumentation.targetContext.getExternalFilesDir(null) ?: return
+        runCatching { device.takeScreenshot(File(folder, "$name.png")) }
+        runCatching { device.dumpWindowHierarchy(File(folder, "$name.xml")) }
+    }
+
+    private fun hideKeyboardAndWait() {
+        device.pressBack()
+        val deadline = SystemClock.uptimeMillis() + 8_000
+        while (SystemClock.uptimeMillis() < deadline) {
+            val showing = instrumentation.uiAutomation.windows.any {
+                it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD
+            }
+            if (!showing) return
+            SystemClock.sleep(150)
+        }
+        fail("Keyboard did not close")
+    }
 
     private fun waitForKeyboard(): Rect {
         val automation = instrumentation.uiAutomation
@@ -51,13 +73,13 @@ class KeyboardFormsInstrumentedTest {
     }
 
     private fun findEditable(): UiObject2 {
-        var edit = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 3_000)
+        var edit = device.wait(Until.findObject(editable()), 3_000)
         if (edit == null || edit.visibleBounds.height() <= 0) {
             runCatching {
-                UiScrollable(UiSelector().scrollable(true))
+                UiScrollable(UiSelector().packageName(appPackage).scrollable(true))
                     .scrollIntoView(UiSelector().className("android.widget.EditText"))
             }
-            edit = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5_000)
+            edit = device.wait(Until.findObject(editable()), 5_000)
         }
         return requireNotNull(edit) { "Actual form input was not reachable" }
     }
@@ -65,11 +87,15 @@ class KeyboardFormsInstrumentedTest {
     private fun assertTypingAboveKeyboard(value: String) {
         findEditable().click()
         val keyboard = waitForKeyboard()
+        // Never inject a hardware key into a window while its input target is absent.
+        // This is a failure, rather than retrying the edit or bypassing the keyboard.
+        assertNotNull("Input lost focus when IME opened",
+            device.wait(Until.findObject(editable().focused(true)), 5_000))
         device.executeShellCommand("input text $value")
         val deadline = SystemClock.uptimeMillis() + 8_000
         while (SystemClock.uptimeMillis() < deadline) {
             val passed = runCatching {
-                val field = device.findObject(By.clazz("android.widget.EditText").focused(true))
+                val field = device.findObject(editable().focused(true))
                 if (field == null) false else {
                     val bounds = field.visibleBounds
                     field.text.orEmpty().contains(value) &&
@@ -79,7 +105,7 @@ class KeyboardFormsInstrumentedTest {
             if (passed) return
             SystemClock.sleep(200)
         }
-        val field = device.findObject(By.clazz("android.widget.EditText").focused(true))
+        val field = device.findObject(editable().focused(true))
         fail("Typed field not visible above IME: keyboardTop=${keyboard.top}, focusedBounds=${field?.visibleBounds}")
     }
 
@@ -91,10 +117,15 @@ class KeyboardFormsInstrumentedTest {
                     AppTheme { BulkDialog(onDismiss = {}, onAdd = {}) }
                 }
             }
-            assertTypingAboveKeyboard("01000000000")
-            device.pressBack()
-            SystemClock.sleep(600)
-            assertTypingAboveKeyboard("12345")
+            try {
+                assertTypingAboveKeyboard("01000000000")
+                hideKeyboardAndWait()
+                assertTypingAboveKeyboard("12345")
+                assertTrue(findEditable().text.orEmpty().contains("01000000000"))
+            } catch (failure: Throwable) {
+                reportFailure("paste-numbers")
+                throw failure
+            }
         }
     }
 
@@ -111,9 +142,12 @@ class KeyboardFormsInstrumentedTest {
             }
             try {
                 assertTypingAboveKeyboard("KeyboardCheck")
-                device.pressBack()
-                SystemClock.sleep(600)
+                hideKeyboardAndWait()
                 assertTypingAboveKeyboard("Again")
+                assertTrue(findEditable().text.orEmpty().contains("KeyboardCheck"))
+            } catch (failure: Throwable) {
+                reportFailure("feedback")
+                throw failure
             } finally {
                 scenario.onActivity { Store.lists.removeAll { it.id == listId } }
             }

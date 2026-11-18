@@ -145,7 +145,10 @@ private fun PrecisionCampaignContent(
     Column(Modifier.fillMaxSize()) {
         O2PinnedTopBar {
             O2TopHeader(L(R.string.ui_campaigns_d8df9f8a),L(R.string.ui_campaigns_contacts_d7e52d96, lists.size, total)) {
-                O2PrimaryButton(L(R.string.ui_new_campaign_d690aa07),onCreate,icon=O2Icons.Plus)
+                O2PrimaryButton(
+                    if (isCompact()) T("New", "جديد") else L(R.string.ui_new_campaign_d690aa07),
+                    onCreate, icon = O2Icons.Plus
+                )
             }
         }
         LazyColumn(
