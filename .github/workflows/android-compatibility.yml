@@ -68,11 +68,9 @@ jobs:
             adb shell wm size 320x640
             adb shell settings put system font_scale 1.0
             adb shell settings put secure show_ime_with_hard_keyboard 1
-            result=0
-            gradle :app:connectedDebugAndroidTest --no-daemon --console=plain || result=$?
-            adb logcat -d -s AndroidRuntime > compat-artifacts/android-runtime.log || true
-            adb pull /sdcard/Android/data/com.o2dialer.app/files/ compat-artifacts/keyboard-diagnostics/ || true
-            exit "$result"
+            # The emulator runner starts a separate /bin/sh for each script line.
+            # Preserve Gradle's exit status and collect diagnostics in the SAME shell.
+            result=0; gradle :app:connectedDebugAndroidTest --no-daemon --console=plain || result=$?; adb logcat -d -s AndroidRuntime > compat-artifacts/android-runtime.log || true; adb pull /sdcard/Android/data/com.o2dialer.app/files/ compat-artifacts/keyboard-diagnostics/ || true; exit "$result"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

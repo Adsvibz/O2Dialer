@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -50,6 +49,17 @@ fun ReferenceStageSheet(listId: String, entryId: String) {
                     HorizontalDivider(color = cs.outlineVariant)
                     Column(Modifier.fillMaxWidth()
                         .padding(20.dp).selectableGroup(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // Use the same Material input that passed the paste-number IME tests.
+                        // Keep it near the top so even a compact keyboard viewport can reach it.
+                        BTextField(
+                            value = notes,
+                            onChange = { notes = it },
+                            label = T("Feedback & Follow-up Notes", "الملاحظات والتعليقات"),
+                            placeholder = T("Follow-up notes", "ملاحظات المتابعة"),
+                            singleLine = false,
+                            minLines = 3
+                        )
+                        HorizontalDivider(color = cs.outlineVariant)
                         Text(T("Select Call Stage", "اختر المرحلة (5 فئات أساسية)"), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         listOf(Stg.POTENTIAL, Stg.CALL_BACK, Stg.WHATSAPP, Stg.VOICEMAIL, Stg.NOT_INTERESTED).chunked(2).forEach { row ->
                             Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -70,14 +80,6 @@ fun ReferenceStageSheet(listId: String, entryId: String) {
                                 if (row.size == 1) Spacer(Modifier.weight(1f))
                             }
                         }
-                        Text(T("Feedback & Follow-up Notes", "الملاحظات والتعليقات"), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        BasicTextField(notes, { notes = it }, Modifier.fillMaxWidth().keepFieldVisible().background(cs.surfaceVariant, RoundedCornerShape(12.dp))
-                            .border(1.dp, cs.outlineVariant, RoundedCornerShape(12.dp)).padding(12.dp), minLines = 3, maxLines = 4,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, color = cs.onSurface), cursorBrush = SolidColor(cs.onSurface),
-                            decorationBox = { input -> Box {
-                                if (notes.isEmpty()) Text(T("Interested in a three-bedroom apartment. Follow up on Thursday.", "مثال: مهتم بشقة ٣ غرف. المتابعة يوم الخميس."), fontSize = 13.sp, color = cs.onSurfaceVariant)
-                                input()
-                            } })
                         if (selected == Stg.POTENTIAL || selected == Stg.WHATSAPP) Row(Modifier.fillMaxWidth().background(cs.surfaceVariant, RoundedCornerShape(12.dp)).border(1.dp, cs.outlineVariant, RoundedCornerShape(12.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(T("WhatsApp Follow-up Shortcut", "متابعة فورية عبر واتساب"), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
