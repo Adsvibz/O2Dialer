@@ -1,5 +1,6 @@
 name: O2Dialer Android compatibility smoke
 on:
+  workflow_call:
   workflow_dispatch:
   pull_request:
     branches: [main]
@@ -64,7 +65,7 @@ jobs:
             adb pull /sdcard/o2compat.png compat-artifacts/android-${{ matrix.api-level }}.png
             adb shell am force-stop com.o2dialer.app
             adb shell wm density 160
-            adb shell wm size 360x640
+            adb shell wm size 320x640
             adb shell settings put system font_scale 1.0
             adb shell settings put secure show_ime_with_hard_keyboard 1
             gradle :app:connectedDebugAndroidTest --no-daemon --console=plain

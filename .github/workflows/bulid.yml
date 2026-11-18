@@ -9,7 +9,12 @@ concurrency:
   group: o2-release-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  compatibility:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/android-compatibility.yml
   build:
+    needs: compatibility
     permissions:
       contents: write
     runs-on: ubuntu-latest

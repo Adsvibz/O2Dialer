@@ -92,6 +92,9 @@ class KeyboardFormsInstrumentedTest {
                 }
             }
             assertTypingAboveKeyboard("01000000000")
+            device.pressBack()
+            SystemClock.sleep(600)
+            assertTypingAboveKeyboard("12345")
         }
     }
 
@@ -108,6 +111,9 @@ class KeyboardFormsInstrumentedTest {
             }
             try {
                 assertTypingAboveKeyboard("KeyboardCheck")
+                device.pressBack()
+                SystemClock.sleep(600)
+                assertTypingAboveKeyboard("Again")
             } finally {
                 scenario.onActivity { Store.lists.removeAll { it.id == listId } }
             }

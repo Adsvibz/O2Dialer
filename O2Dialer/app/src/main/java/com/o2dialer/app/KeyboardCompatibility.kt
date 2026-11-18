@@ -30,7 +30,7 @@ internal val legacyKeyboardWindow: Boolean
 @Composable
 internal fun LegacyDialogResize() {
     val view = LocalView.current
-    SideEffect {
+    LaunchedEffect(view) {
         if (legacyKeyboardWindow) {
             (view.parent as? DialogWindowProvider)?.window?.let { window ->
                 WindowCompat.setDecorFitsSystemWindows(window, true)
@@ -66,11 +66,12 @@ internal data class KeyboardViewport(
  * on layout and pre-draw, without consuming or replacing the platform inset listener.
  */
 @Composable
-internal fun rememberKeyboardViewport(): KeyboardViewport {
+internal fun rememberKeyboardViewport(enabled: Boolean = true): KeyboardViewport {
     val view = LocalView.current
     val threshold = with(LocalDensity.current) { 80 * density }.toInt()
     var frame by remember(view) { mutableStateOf(KeyboardViewport()) }
-    DisposableEffect(view, threshold) {
+    DisposableEffect(view, threshold, enabled) {
+        if (!enabled) return@DisposableEffect onDispose { }
         val rect = Rect()
         val position = IntArray(2)
         var largestVisibleBottom = 0
@@ -131,16 +132,17 @@ internal fun Modifier.keyboardViewportPadding(
 internal fun Modifier.keepFieldVisible(): Modifier {
     val requester = remember { BringIntoViewRequester() }
     var focused by remember { mutableStateOf(false) }
-    val frame = if (focused) rememberKeyboardViewport() else KeyboardViewport()
+    // Keep the composition slots and modifier nodes stable across focus changes.
+    val frame = rememberKeyboardViewport(enabled = focused)
     val ime = WindowInsets.ime.getBottom(LocalDensity.current)
     LaunchedEffect(focused, ime, frame.visibleBottom, frame.viewHeight) {
         if (focused) {
-            // Retry after actual viewport changes, not only the initial focus event.
-            delay(100)
-            requester.bringIntoView()
-            delay(300)
+            // BasicTextField already relocates its caret; one supplementary request
+            // after layout is enough. Do not repeatedly restart scroll/focus handling.
+            delay(160)
             requester.bringIntoView()
         }
     }
-    return this.bringIntoViewRequester(requester).onFocusChanged { focused = it.isFocused }
+    val onFocus = remember { { state: androidx.compose.ui.focus.FocusState -> focused = state.isFocused } }
+    return this.bringIntoViewRequester(requester).onFocusChanged(onFocus)
 }

@@ -30,6 +30,9 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -209,13 +212,22 @@ fun AppTheme(content: @Composable () -> Unit) {
             }
         }
     }
+    // Scale the entire design's geometry and typography together by the usable
+    // width, not height (the keyboard must never change the UI scale).
+    val platformDensity = LocalDensity.current
+    val widthDp = LocalConfiguration.current.screenWidthDp
+    val scale = adaptiveUiScale(widthDp)
+    val designDensity = remember(platformDensity, scale) {
+        Density(platformDensity.density * scale, platformDensity.fontScale)
+    }
     MaterialTheme(
         colorScheme = cleanScheme, typography = ty,
         shapes = com.o2dialer.app.ui.theme.O2Shape.Material
     ) {
         CompositionLocalProvider(
             LocalRippleTheme provides O2NoRippleTheme,
-            LocalIndication provides O2PressedContentIndication
+            LocalIndication provides O2PressedContentIndication,
+            LocalDensity provides designDensity
         ) {
             com.o2dialer.app.ui.components.ReferenceViewport {
                 com.o2dialer.app.ui.components.O2Canvas(dark) { content() }

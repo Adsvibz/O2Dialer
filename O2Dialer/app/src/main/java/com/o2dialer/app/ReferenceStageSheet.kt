@@ -49,15 +49,15 @@ fun ReferenceStageSheet(listId: String, entryId: String) {
             .clickable(remember { MutableInteractionSource() }, indication = null, onClick = close)
             .then(if (legacyKeyboardWindow) Modifier.keyboardViewportPadding(nativeResize = true)
                 else Modifier.safeDrawingPadding().keyboardViewportPadding(nativeResize = false))) {
-            val compact = maxHeight < 460.dp
+            // A single scroll tree for the entire lifetime of this dialog.
+            // Never change scroll ownership while the IME has a focused text field.
             val formScroll = rememberScrollState()
-            val bodyScroll = rememberScrollState()
             Surface(Modifier.align(Alignment.Center)
-                .padding(if (compact) 8.dp else 20.dp).widthIn(max = 448.dp).fillMaxWidth().heightIn(max = maxHeight * .9f)
+                .padding(12.dp).widthIn(max = 448.dp).fillMaxWidth().heightIn(max = maxHeight)
                 .clickable(remember { MutableInteractionSource() }, indication = null, onClick = {}),
                 shape = RoundedCornerShape(24.dp), shadowElevation = 16.dp,
                 color = cs.surface, contentColor = cs.onSurface, border = BorderStroke(1.dp, cs.outlineVariant)) {
-                Column(Modifier.then(if (compact) Modifier.verticalScroll(formScroll) else Modifier)) {
+                Column(Modifier.verticalScroll(formScroll)) {
                     Row(Modifier.padding(20.dp, 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(T("Classify Call Outcome", "تصنيف نتيجة المكالمة"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -66,7 +66,7 @@ fun ReferenceStageSheet(listId: String, entryId: String) {
                         IconButton(close, Modifier.size(32.dp)) { Icon(O2Icons.Close, L(R.string.ref_close), Modifier.size(16.dp)) }
                     }
                     HorizontalDivider(color = cs.outlineVariant)
-                    Column(Modifier.then(if (compact) Modifier else Modifier.weight(1f, fill = false).verticalScroll(bodyScroll))
+                    Column(Modifier.fillMaxWidth()
                         .padding(20.dp).selectableGroup(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(T("Select Call Stage", "اختر المرحلة (5 فئات أساسية)"), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         listOf(Stg.POTENTIAL, Stg.CALL_BACK, Stg.WHATSAPP, Stg.VOICEMAIL, Stg.NOT_INTERESTED).chunked(2).forEach { row ->

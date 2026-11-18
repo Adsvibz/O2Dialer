@@ -789,10 +789,11 @@ fun BSheet(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
-    // Input sheets on API 26–29 use a native resize-aware dialog window.
+    // Use a native dialog for input sheets on older devices. The form's scroll
+    // owner stays unchanged as the keyboard opens/closes, preserving focus.
     val useLegacyInputSheet = keyboardAware && legacyKeyboardWindow
-    val sheetBody: @Composable (Boolean) -> Unit = { compact ->
-        val compactForm = compact && scrollable && keyboardAware
+    val sheetBody: @Composable () -> Unit = {
+        val compactForm = scrollable && keyboardAware
         val formScroll = rememberScrollState()
         val bodyScroll = rememberScrollState()
         Column(
@@ -846,9 +847,7 @@ fun BSheet(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         BottomSheetDefaults.DragHandle(color = cs.outline)
-                        BoxWithConstraints(Modifier.fillMaxWidth()) {
-                            sheetBody(maxHeight < 430.dp)
-                        }
+                        sheetBody()
                     }
                 }
             }
@@ -863,13 +862,7 @@ fun BSheet(
             scrimColor = Color.Black.copy(alpha = 0.32f),
             dragHandle = { BottomSheetDefaults.DragHandle(color = cs.outline) }
         ) {
-            BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                val viewport = rememberKeyboardViewport()
-                val keyboardDp = with(androidx.compose.ui.platform.LocalDensity.current) {
-                    WindowInsets.ime.getBottom(this).toDp()
-                }
-                sheetBody(maxHeight - keyboardDp < 430.dp && viewport.visible)
-            }
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { sheetBody() }
         }
     }
 }
