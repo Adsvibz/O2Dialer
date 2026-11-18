@@ -32,6 +32,7 @@ object AppUpdates {
     var ready by mutableStateOf(false); private set
     var error by mutableStateOf(false); private set
     var showDialog by mutableStateOf(false); private set
+    var autoInstallRequested by mutableStateOf(false); private set
     private var downloadJob: Job? = null
     private var lastAttempt = 0L
     private const val CHECK_INTERVAL = 6 * 60 * 60 * 1000L
@@ -39,11 +40,11 @@ object AppUpdates {
     private fun target(ctx: Context, code: Int) = File(ctx.cacheDir, "updates/update-$code.apk")
 
     fun check(context: Context, manual: Boolean = false) {
-        if (checking || downloading || verifying) return
+        if (checking || downloading || verifying || (UpdateInstaller.installing && available != null)) return
         val ctx = context.applicationContext
         val now = System.currentTimeMillis()
         val previous = maxOf(lastAttempt, prefs(ctx).getLong("checked", 0L))
-        if (!manual && now >= previous && now - previous < CHECK_INTERVAL) return
+        if (!manual && lastAttempt != 0L && now >= previous && now - previous < CHECK_INTERVAL) return
         lastAttempt = now
         checking = true
         scope.launch {
@@ -57,13 +58,18 @@ object AppUpdates {
                 }
                 prefs(ctx).edit().putLong("checked", now).apply()
                 if (update.appliesTo(BuildConfig.VERSION_CODE, Build.VERSION.SDK_INT)) {
-                    if (available?.versionCode != update.versionCode) ready = false
+                    if (available?.versionCode != update.versionCode) {
+                        val cached = target(ctx, update.versionCode)
+                        ready = withContext(Dispatchers.IO) {
+                            runCatching { verify(ctx, cached, update) }.isSuccess
+                        }
+                    }
                     available = update
                     error = false
                     val dismissed = prefs(ctx).getLong("dismissedAt", 0)
                     val suppressed = prefs(ctx).getInt("dismissedVersion", 0) == update.versionCode &&
                         now >= dismissed && now - dismissed < 24 * 60 * 60 * 1000L
-                    if (manual || !suppressed) showDialog = true
+                    if (manual || !suppressed || UpdateInstaller.confirmation != null) showDialog = true
                 } else {
                     available = null
                     ready = false
@@ -84,13 +90,16 @@ object AppUpdates {
 
     fun dismiss(ctx: Context) {
         showDialog = false
+        autoInstallRequested = false
         available?.let { prefs(ctx).edit().putInt("dismissedVersion", it.versionCode)
             .putLong("dismissedAt", System.currentTimeMillis()).apply() }
     }
 
     fun download(context: Context) {
         val update = available ?: return
-        if (downloading || verifying) return
+        if (downloading || verifying || UpdateInstaller.installing || Store.campActive()) return
+        UpdateInstaller.resetError()
+        autoInstallRequested = true
         val ctx = context.applicationContext
         downloading = true
         ready = false
@@ -141,37 +150,44 @@ object AppUpdates {
         }
     }
 
-    fun cancelDownload() { downloadJob?.cancel() }
+    fun cancelDownload() { autoInstallRequested = false; downloadJob?.cancel() }
 
-    fun install(activity: Activity) {
+    fun install(activity: Activity, legacy: Boolean = false) {
         val update = available ?: return
-        if (!ready || verifying || Store.campActive()) return
+        if (!ready || verifying || UpdateInstaller.installing || Store.campActive() || !UpdateInstaller.foreground(activity)) return
+        if (legacy && !UpdateInstaller.allowLegacyInstaller) return
         if (!activity.packageManager.canRequestPackageInstalls()) {
+            autoInstallRequested = !legacy
             runCatching {
                 activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                     Uri.parse("package:${activity.packageName}")))
-            }.onFailure { Store.notify(Tk.ERROR, T("Open Android settings to allow updates from O2Dialer", "افتح إعدادات أندرويد للسماح بالتحديث من O2Dialer")) }
+            }.onFailure {
+                autoInstallRequested = false
+                Store.notify(Tk.ERROR, T("Open Android settings to allow updates from O2Dialer", "افتح إعدادات أندرويد للسماح بالتحديث من O2Dialer"))
+            }
             return
         }
+        autoInstallRequested = false
         verifying = true
         scope.launch {
             try {
                 val file = target(activity, update.versionCode)
-                withContext(Dispatchers.IO) { verify(activity.applicationContext, file, update) }
-                // Recheck after IO: a campaign could have started while validating the file.
-                if (Store.campActive() || activity.isFinishing || activity.isDestroyed) return@launch
+                try {
+                    withContext(Dispatchers.IO) { verify(activity.applicationContext, file, update) }
+                } catch (e: CancellationException) { throw e
+                } catch (_: Exception) { ready = false; error = true; return@launch }
+                if (Store.campActive() || !UpdateInstaller.foreground(activity)) return@launch
                 Store.flush()
-                val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.updates", file)
-                val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                intent.clipData = ClipData.newRawUri("O2Dialer update", uri)
-                activity.startActivity(intent)
-            } catch (e: CancellationException) { throw e
-            } catch (_: Exception) {
-                ready = false
-                error = true
+                UpdateInstaller.start(activity, file, legacy)
             } finally { verifying = false }
         }
+    }
+
+    internal fun installed() {
+        ready = false
+        available = null
+        showDialog = false
+        autoInstallRequested = false
     }
 
     private fun verify(ctx: Context, file: File, update: UpdateManifest) {

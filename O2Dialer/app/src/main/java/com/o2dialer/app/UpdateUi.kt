@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -31,7 +32,7 @@ fun UpdateSettingsSection() {
             }
         }
         OutlinedButton(onClick = { AppUpdates.check(ctx, manual = true) },
-            enabled = !AppUpdates.checking && !AppUpdates.downloading && !AppUpdates.verifying,
+            enabled = !AppUpdates.checking && !AppUpdates.downloading && !AppUpdates.verifying && !UpdateInstaller.installing,
             interactionSource = checkTouch,
             modifier = Modifier.fillMaxWidth().pressScale(checkTouch)) {
             Text(if (AppUpdates.checking) L(R.string.ui_checking_49631f22) else L(R.string.ui_check_for_updates_5ddbcd94))
@@ -46,6 +47,17 @@ fun UpdateHost(activity: Activity) {
     if (!AppUpdates.showDialog || Store.campActive() || Store.stageTarget != null || License.showActivation) return
     val permissionTick = Store.permTick
     val mayInstall = androidx.compose.runtime.remember(permissionTick) { activity.packageManager.canRequestPackageInstalls() }
+    LaunchedEffect(AppUpdates.ready, AppUpdates.autoInstallRequested, AppUpdates.downloading,
+        AppUpdates.verifying, UpdateInstaller.installing, mayInstall, permissionTick) {
+        if (AppUpdates.ready && AppUpdates.autoInstallRequested && mayInstall &&
+            !AppUpdates.downloading && !AppUpdates.verifying && !UpdateInstaller.installing &&
+            UpdateInstaller.foreground(activity)) AppUpdates.install(activity)
+    }
+    LaunchedEffect(UpdateInstaller.confirmation, permissionTick) {
+        if (UpdateInstaller.confirmation != null && UpdateInstaller.foreground(activity)) {
+            UpdateInstaller.continueInstallation(activity)
+        }
+    }
     AlertDialog(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
         containerColor = MaterialTheme.colorScheme.surface.copy(alpha=1f),
@@ -62,9 +74,22 @@ fun UpdateHost(activity: Activity) {
                         Text(L(R.string.ui_downloading_69da755f, AppUpdates.progress))
                     }
                     AppUpdates.verifying -> Text(L(R.string.ui_verifying_update_3768d0e9))
+                    UpdateInstaller.confirmation != null -> Text(T("Android requires confirmation to finish the update.", "يحتاج أندرويد لتأكيد التثبيت لإكمال التحديث."))
+                    UpdateInstaller.installing -> {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Text(T("Installing update…", "جارٍ تثبيت التحديث…"))
+                    }
+                    UpdateInstaller.message != null -> {
+                        Text(UpdateInstaller.message.orEmpty(), color = MaterialTheme.colorScheme.error)
+                        if (AppUpdates.ready && UpdateInstaller.allowLegacyInstaller) {
+                            TextButton(onClick = { AppUpdates.install(activity, legacy = true) }) {
+                                Text(T("Open standard installer", "فتح مثبت أندرويد العادي"))
+                            }
+                        }
+                    }
                     AppUpdates.error -> Text(L(R.string.ui_couldn_t_download_verify_or_open_the_u_9bd70ce6), color = MaterialTheme.colorScheme.error)
                     AppUpdates.ready -> Text(if (mayInstall)
-                        L(R.string.ui_ready_to_install_android_will_ask_you__c0fe79b8)
+                        T("Verified update is ready. Android may request confirmation.", "التحديث جاهز بعد التحقق منه. قد يطلب أندرويد التأكيد.")
                         else L(R.string.ui_allow_o2dialer_to_install_updates_in_a_28663a74))
                     else -> Text(L(R.string.ui_your_campaigns_and_settings_stay_in_pl_61fcea8d, ((update.size + 1048575) / 1048576)))
                 }
@@ -72,17 +97,24 @@ fun UpdateHost(activity: Activity) {
         },
         confirmButton = {
             if (!AppUpdates.downloading) TextButton(
-                enabled = !AppUpdates.verifying,
-                onClick = { if (AppUpdates.ready) AppUpdates.install(activity) else AppUpdates.download(activity) }
-            ) { Text(if (AppUpdates.ready) {
+                enabled = !AppUpdates.verifying && (!UpdateInstaller.installing || UpdateInstaller.confirmation != null),
+                onClick = {
+                    if (UpdateInstaller.confirmation != null) UpdateInstaller.continueInstallation(activity)
+                    else if (AppUpdates.ready) AppUpdates.install(activity)
+                    else AppUpdates.download(activity)
+                }
+            ) { Text(if (UpdateInstaller.confirmation != null) T("Continue", "متابعة")
+            else if (UpdateInstaller.installing) T("Installing…", "جارٍ التثبيت…")
+            else if (AppUpdates.ready) {
                 if (mayInstall) L(R.string.ui_install_c9a38679) else L(R.string.ui_allow_installation_a875d086)
-            } else if (AppUpdates.error) L(R.string.ui_try_again_db24459d) else L(R.string.ui_download_update_d4fda48d)) }
+            } else if (AppUpdates.error) L(R.string.ui_try_again_db24459d) else T("Update", "تحديث")) }
         },
         dismissButton = {
             TextButton(onClick = {
                 if (AppUpdates.downloading) AppUpdates.cancelDownload()
+                if (UpdateInstaller.installing) UpdateInstaller.cancel(activity)
                 AppUpdates.dismiss(activity)
-            }) { Text(if (AppUpdates.downloading) L(R.string.ui_cancel_823a3ad2) else L(R.string.ui_later_273ebd5f)) }
+            }) { Text(if (AppUpdates.downloading || UpdateInstaller.installing) L(R.string.ui_cancel_823a3ad2) else L(R.string.ui_later_273ebd5f)) }
         }
     )
 }
